@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:Photos/Login/services/login_services.dart';
 import 'package:Photos/services/files_services.dart';
 import 'package:Photos/upload_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -70,3 +71,70 @@ Future<void> handleMultipleFileUpload(List<File> selectedFiles, BuildContext con
 
   uploadProvider.setCurrentUploadIndex(selectedFiles.length);
 }
+
+
+Future<void> handleAutoSingleFile(File file, BuildContext context, {bool saveLastBackupTime=false}) async {
+  final fileProvider = Provider.of<DriveFileProvider>(context, listen: false);
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  List<String> refreshTokensList = prefs.getStringList('refreshTokensList')??['','','',''];
+  List<String> accessTokens = ['','','',''];
+  String folderId = prefs.getString('folderId') ?? '';
+  final fileSize = await file.length();
+  for(int i=0; i<4; i++){
+      if(refreshTokensList[i].isNotEmpty){
+        if(accessTokens[i].isEmpty){
+          accessTokens[i] = await LoginServices.getAccessTokenFromBackend(refreshTokensList[i]);
+        }
+        if(accessTokens[i].isNotEmpty && folderId.isNotEmpty){
+          int? freeSpace = await FileServices.getDriveStorageQuota(accessTokens[i]);
+          if(freeSpace!=null && freeSpace>fileSize+1048576000) {
+            DriveFile? driveFile= await FileServices.uploadFile(file, accessTokens[i], folderId);
+            if(driveFile!=null) {
+              fileProvider.addFile(driveFile);
+              if(saveLastBackupTime){
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                DateTime backupTime = DateTime.now();
+                await prefs.setInt('lastBackupTime', backupTime.millisecondsSinceEpoch);
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+}
+
+// Future<void> handleAutoSingleFile(List<File> selectedFiles, BuildContext context, {bool saveLastBackupTime=false}) async {
+//   final fileProvider = Provider.of<DriveFileProvider>(context, listen: false);
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   List<String> refreshTokensList = prefs.getStringList('refreshTokensList')??['','','',''];
+//   List<String> accessTokens = ['','','',''];
+//   String folderId = prefs.getString('folderId') ?? '';
+//
+//   for (int i = 0; i < selectedFiles.length; i++) {
+//     File file = selectedFiles[i];
+//     final fileSize = await file.length();
+//     for(int i=0; i<4; i++){
+//       if(refreshTokensList[i].isNotEmpty){
+//         if(accessTokens[i].isEmpty){
+//           accessTokens[i] = await LoginServices.getAccessTokenFromBackend(refreshTokensList[i]);
+//         }
+//         if(accessTokens[i].isNotEmpty && folderId.isNotEmpty){
+//           int? freeSpace = await FileServices.getDriveStorageQuota(accessTokens[i]);
+//           if(freeSpace!=null && freeSpace>fileSize+1048576000) {
+//             DriveFile? driveFile= await FileServices.uploadFile(file, accessTokens[i], folderId);
+//             if(driveFile!=null) {
+//               fileProvider.addFile(driveFile);
+//               if(saveLastBackupTime){
+//                 SharedPreferences prefs = await SharedPreferences.getInstance();
+//                 DateTime backupTime = DateTime.now();
+//                 await prefs.setInt('lastBackupTime', backupTime.millisecondsSinceEpoch);
+//               }
+//             }
+//             break;
+//           }
+//         }
+//       }
+//     }
+//   }
+// }

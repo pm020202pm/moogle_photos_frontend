@@ -50,10 +50,11 @@ class AuthProvider with ChangeNotifier{
       final data = json.decode(response.body);
       final user = data['user'];
       token  = data['token'];
+      savedUser = UserModel.fromJson(user);
       SharedPreferences prefs = await SharedPreferences.getInstance();
       prefs.setString('token', token);
       prefs.setString('emailId', email);
-      savedUser = UserModel.fromJson(user);
+      prefs.setString('folderId', savedUser!.sharedFolderId);
       // isLoggedIn = true;
       otp = '';
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>MyApp()));
@@ -85,6 +86,7 @@ class AuthProvider with ChangeNotifier{
             dynamic user = data['user'];
             savedUser = UserModel.fromJson(user);
             refreshTokensList = prefs.getStringList('refreshTokensList')??['','','',''];
+            prefs.setString('folderId', savedUser!.sharedFolderId);
             notifyListeners();
             debugPrint('sharedFolderId: ${savedUser?.sharedFolderId}');
             debugPrint('Refresh tokens list: $refreshTokensList');

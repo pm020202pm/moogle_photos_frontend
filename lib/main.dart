@@ -27,8 +27,8 @@ void backgroundFetchHeadlessTask(HeadlessTask task) async {
   }
   final bool granted = await requestPermissions();
   if (granted) {
-    AutoUploadProvider autoUploadProvider = AutoUploadProvider();
-    await autoUploadProvider.uploadCameraFiles(null);
+    // AutoUploadProvider autoUploadProvider = AutoUploadProvider();
+    // await autoUploadProvider.uploadCameraFiles(null);
     // await uploadCameraFiles(null);
   }
   BackgroundFetch.finish(taskId);
@@ -111,7 +111,7 @@ class MyAppState extends State<MyApp> {
 
   void startAutoUploadTimer() {
     _autoUploadTimer?.cancel();
-    _autoUploadTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+    _autoUploadTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
       final autoUploadProvider = Provider.of<AutoUploadProvider>(context, listen: false);
       autoUploadProvider.uploadCameraFiles(context);
       // await uploadCameraFiles(context);
@@ -163,6 +163,7 @@ class MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      color: Colors.blue,
       debugShowCheckedModeBanner: false,
       home: Splashscreen()
     );

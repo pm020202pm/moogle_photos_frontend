@@ -1,41 +1,87 @@
 
 import 'dart:io';
 import 'package:Photos/Login/services/login_services.dart';
+import 'package:Photos/services/files_services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'dashboard/widgets/upload_icon.dart';
+import 'home/models/drive_file_model.dart';
+import 'home/providers/drive_file_provider.dart';
 
 class AutoUploadProvider with ChangeNotifier {
 
   bool isAutoUploading = false;
-  Future<void> uploadCameraFiles(BuildContext? context) async {
+  Future<void> uploadCameraFiles(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     DateTime lastBackupTime = DateTime.fromMillisecondsSinceEpoch(prefs.getInt('lastBackupTime') ?? 0);
+    final fileProvider = Provider.of<DriveFileProvider>(context, listen: false);
+    List<String> refreshTokensList = prefs.getStringList('refreshTokensList')??['','','',''];
+    List<String> accessTokens = ['','','',''];
+    String folderId = prefs.getString('folderId') ?? '';
     print("Last Backup Time: $lastBackupTime");
     List<File> files=[];
-    if(Platform.isAndroid){
-      files = await getAndroidFiles(lastBackupTime);
-    }else if(Platform.isWindows){
-      files = await getWindowsFiles(lastBackupTime);
-    }else if(Platform.isIOS){
-      successSnackMsg('on iOS', context!);
-      final assets = await getIosCameraFilesAsFiles(lastBackupTime, context);
-      final file = await assets[0].file;
-      if(file == null) return;
-      successSnackMsg('${file.path}', context);
-      files = [file];
-      // files = await Future.wait(assets.map((asset) async {
-      //   final file = await asset.file;
-      //   return file!;
-      // }));
-    }
-
-    if(files.isNotEmpty){
+    if(Platform.isAndroid || Platform.isWindows){
+      files = Platform.isAndroid? await getAndroidFiles(lastBackupTime): Platform.isWindows? await getWindowsFiles(lastBackupTime) : [];
+      print("Found ${files.length} files to upload");
+      if(files.isNotEmpty){
+        isAutoUploading = true;
+        notifyListeners();
+        for(int i=0; i<files.length; i++){
+          final fileSize = await files[i].length();
+          for(int j=0; j<4; j++){
+            if(refreshTokensList[j].isNotEmpty){
+              if(accessTokens[j].isEmpty){
+                accessTokens[j] = await LoginServices.getAccessTokenFromBackend(refreshTokensList[j]);
+              }
+              if(accessTokens[j].isNotEmpty && folderId.isNotEmpty){
+                int? freeSpace = await FileServices.getDriveStorageQuota(accessTokens[j]);
+                if(freeSpace!=null && freeSpace>fileSize+1048576000) {
+                  DriveFile? driveFile= await FileServices.uploadFile(files[i], accessTokens[j], folderId);
+                  if(driveFile!=null) {
+                    fileProvider.addFile(driveFile);
+                    DateTime backupTime = DateTime.now();
+                    await prefs.setInt('lastBackupTime', backupTime.millisecondsSinceEpoch);
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+        isAutoUploading = false;
+        notifyListeners();
+      }
+    } else if(Platform.isIOS){
+      final assets = await getIosCameraFilesAsFiles(lastBackupTime);
       isAutoUploading = true;
       notifyListeners();
-      await handleMultipleFileUpload(files, context!, saveLastBackupTime: true);
+      for(int i=0; i<assets.length; i++){
+        final file = await assets[i].file;
+        if(file == null) continue;
+        final fileSize = await file.length();
+        for(int j=0; j<4; j++){
+          if(refreshTokensList[j].isNotEmpty){
+            if(accessTokens[j].isEmpty){
+              accessTokens[j] = await LoginServices.getAccessTokenFromBackend(refreshTokensList[j]);
+            }
+            if(accessTokens[j].isNotEmpty && folderId.isNotEmpty){
+              int? freeSpace = await FileServices.getDriveStorageQuota(accessTokens[j]);
+              if(freeSpace!=null && freeSpace>fileSize+1048576000) {
+                DriveFile? driveFile= await FileServices.uploadFile(file, accessTokens[j], folderId);
+                if(driveFile!=null) {
+                  fileProvider.addFile(driveFile);
+                  DateTime backupTime = DateTime.now();
+                  await prefs.setInt('lastBackupTime', backupTime.millisecondsSinceEpoch);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
       isAutoUploading = false;
       notifyListeners();
     }
@@ -58,7 +104,7 @@ class AutoUploadProvider with ChangeNotifier {
   }
 
   Future<List<File>> getAndroidFiles(DateTime lastBackupTime) async {
-    final directory = Directory('/storage/emulated/0/DCIM/Pictures');
+    final directory = Directory('/storage/emulated/0/DCIM/Camera');
     if (!await directory.exists()) return [];
     final files = directory
         .listSync()
@@ -69,12 +115,9 @@ class AutoUploadProvider with ChangeNotifier {
   }
 
 
-  Future<List<AssetEntity>> getIosCameraFilesAsFiles(DateTime lastBackupTime, BuildContext context) async {
+  Future<List<AssetEntity>> getIosCameraFilesAsFiles(DateTime lastBackupTime) async {
     final permission = await PhotoManager.requestPermissionExtend();
     if (!permission.isAuth) return [];
-
-    successSnackMsg('Permission granted', context);
-    // Define the filter here
     final filterOptions = FilterOptionGroup(
       imageOption: const FilterOption(),
       createTimeCond: DateTimeCond(min: lastBackupTime, max: DateTime.now()),
@@ -86,11 +129,7 @@ class AutoUploadProvider with ChangeNotifier {
       type: RequestType.image,
       filterOption: filterOptions,
     );
-    successSnackMsg('total ${albums.length} albums fetched', context);
-
     if (albums.isEmpty) return [];
-
-    successSnackMsg('${albums[0].name}', context);
     final AssetPathEntity album = albums.firstWhere(
           (a) => a.name.toLowerCase().contains('camera') || a.name.toLowerCase().contains('recent'),
       orElse: () => albums.first,
@@ -102,7 +141,6 @@ class AutoUploadProvider with ChangeNotifier {
       page: 0,
       size: 10,
     );
-    successSnackMsg('total ${assets.length} assets fetched', context);
     return assets;
   }
 

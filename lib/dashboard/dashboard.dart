@@ -37,28 +37,34 @@ class _DashboardState extends State<Dashboard> {
     Size size = MediaQuery.of(context).size;
     final px1200 = size.width <1200;
     final px600 = size.width <600;
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        Scaffold(
+    return Material(
+      color: Colors.white,
+      child: SafeArea(
+        child: Scaffold(
           backgroundColor: Color(0xFFf0f4f9),
           appBar: PreferredSize(
-              preferredSize: const Size.fromHeight(72),
+              preferredSize: const Size.fromHeight(65),
               child: Consumer<DriveFileProvider>(
                 builder: (context, fileProvider, child) {
                   return fileProvider.selectedFileIds.isNotEmpty? ActionButtonDesktop(selectedFiles: fileProvider.selectedFiles.length,):TopBarDesktop();
                 },
               )
           ),
-          body: Row(
+          body: Stack(
+            alignment: Alignment.bottomRight,
             children: [
-              if(!px600)
-              Sidebar(),
-              Consumer<DashboardProvider>(
-                builder: (context, dashboardProvider, child) {
-                  return Expanded(child: tabs[dashboardProvider.currentIndex]);
-                },
+              Row(
+                children: [
+                  if(!px600)
+                    Sidebar(),
+                  Consumer<DashboardProvider>(
+                    builder: (context, dashboardProvider, child) {
+                      return Expanded(child: tabs[dashboardProvider.currentIndex]);
+                    },
+                  ),
+                ],
               ),
+              UploadStatusDialog(),
             ],
           ),
           floatingActionButton: px600? Padding(
@@ -89,13 +95,12 @@ class _DashboardState extends State<Dashboard> {
                   ],
                 ),
               ),
-
+      
             ),
           ): SizedBox.shrink(),
           floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         ),
-        UploadStatusDialog(),
-      ],
+      ),
     );
   }
 
