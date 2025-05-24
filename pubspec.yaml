@@ -54,6 +54,7 @@ dependencies:
   unicons: ^3.0.0
   popover: ^0.3.1
   mime: ^2.0.0
+  photo_manager: ^3.7.1
 
 dev_dependencies:
   flutter_test:
