@@ -1,5 +1,6 @@
 
 import 'dart:io';
+import 'package:Photos/Login/services/login_services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,11 +20,16 @@ class AutoUploadProvider with ChangeNotifier {
     }else if(Platform.isWindows){
       files = await getWindowsFiles(lastBackupTime);
     }else if(Platform.isIOS){
-      final assets = await getIosCameraFilesAsFiles(lastBackupTime);
-      files = await Future.wait(assets.map((asset) async {
-        final file = await asset.file;
-        return file!;
-      }));
+      successSnackMsg('on iOS', context!);
+      final assets = await getIosCameraFilesAsFiles(lastBackupTime, context);
+      final file = await assets[0].file;
+      if(file == null) return;
+      successSnackMsg('${file.path}', context);
+      files = [file];
+      // files = await Future.wait(assets.map((asset) async {
+      //   final file = await asset.file;
+      //   return file!;
+      // }));
     }
 
     if(files.isNotEmpty){
@@ -63,35 +69,40 @@ class AutoUploadProvider with ChangeNotifier {
   }
 
 
-  Future<List<AssetEntity>> getIosCameraFilesAsFiles(DateTime lastBackupTime) async {
+  Future<List<AssetEntity>> getIosCameraFilesAsFiles(DateTime lastBackupTime, BuildContext context) async {
     final permission = await PhotoManager.requestPermissionExtend();
     if (!permission.isAuth) return [];
 
+    successSnackMsg('Permission granted', context);
     // Define the filter here
     final filterOptions = FilterOptionGroup(
       imageOption: const FilterOption(),
-      createTimeCond: DateTimeCond(min: lastBackupTime, max: DateTime.now().add(Duration(days: 365 * 10))),
+      createTimeCond: DateTimeCond(min: lastBackupTime, max: DateTime.now()),
       orders: [
         const OrderOption(type: OrderOptionType.createDate, asc: false),
       ],
     );
     final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
       type: RequestType.image,
-      filterOption: filterOptions, // ✅ Apply filter here
+      filterOption: filterOptions,
     );
+    successSnackMsg('total ${albums.length} albums fetched', context);
 
     if (albums.isEmpty) return [];
 
+    successSnackMsg('${albums[0].name}', context);
     final AssetPathEntity album = albums.firstWhere(
           (a) => a.name.toLowerCase().contains('camera') || a.name.toLowerCase().contains('recent'),
       orElse: () => albums.first,
     );
 
+
     // Then fetch assets from that filtered album
     final List<AssetEntity> assets = await album.getAssetListPaged(
       page: 0,
-      size: 100,
+      size: 10,
     );
+    successSnackMsg('total ${assets.length} assets fetched', context);
     return assets;
   }
 
