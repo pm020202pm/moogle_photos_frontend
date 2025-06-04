@@ -21,10 +21,11 @@ class TopBarDesktop extends StatelessWidget {
       child: Row(
         children: [
           Text('Google Photos', style: TextStyle(fontSize: px600? 19:22, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 90),
-          if(px600)
-            Spacer(),
           if(!px600)
+          const SizedBox(width: 95),
+          if(px600 || px1200)
+            Spacer(),
+          if(!px600 && !px1200)
           Expanded(
             child: TextField(
               decoration: InputDecoration(
@@ -40,6 +41,7 @@ class TopBarDesktop extends StatelessWidget {
               ),
             ),
           ),
+          if(px1200)
           if(!px600)
           const SizedBox(width: 10),
           IconButton(
@@ -61,7 +63,7 @@ class TopBarDesktop extends StatelessWidget {
             child: IconButton(
                 icon: Icon(Icons.settings),
                 onPressed: () {
-                  dashboardProvider.setCurrentIndex(1);
+                  dashboardProvider.setCurrentIndex(2);
                 }),
           ),
           const SizedBox(width: 12),

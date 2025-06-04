@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:Photos/services/files_services.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Login/providers/auth_provider.dart';
 import '../models/drive_file_model.dart';
 
@@ -10,6 +13,7 @@ class DriveFileProvider with ChangeNotifier {
   Set<String> selectedFileIds = {};
   double totalStorage = 1;
   double usedStorage=0;
+  bool isSyncing = false;
 
   late AuthProvider _authProvider;
 
@@ -39,7 +43,6 @@ class DriveFileProvider with ChangeNotifier {
     notifyListeners();
   }
   void setFiles(List<DriveFile> files) {
-    print('Setting files: ${files.length}');
     allFiles = files;
     notifyListeners();
   }
@@ -50,7 +53,6 @@ class DriveFileProvider with ChangeNotifier {
   }
 
   void addMoreFiles(List<DriveFile> files) {
-    print('Adding more files: ${files.length}');
     allFiles.addAll(files);
     notifyListeners();
   }
@@ -65,13 +67,11 @@ class DriveFileProvider with ChangeNotifier {
   }
 
   void clearSelection() {
-    print('Clearing selection');
     selectedFileIds.clear();
     notifyListeners();
   }
 
   void removeFile(String fileId) {
-    print('Removing file: $fileId');
     allFiles.removeWhere((file) => file.id == fileId);
     selectedFileIds.remove(fileId);
     notifyListeners();
@@ -94,10 +94,38 @@ class DriveFileProvider with ChangeNotifier {
     }
     final response = await FileServices.fetchDriveFiles(folderId: folderId, pageToken: nextPageToken, refreshToken: refreshToken);
     isInitialLoad? setFiles(response.files) : addMoreFiles(response.files);
+    if(isInitialLoad){
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      prefs.setString('lastSyncTime', DateTime.now().toUtc().toIso8601String());
+    }
     nextPageToken = response.nextPageToken;
     isAllFilesLoading=false;
     notifyListeners();
   }
+
+
+  Future<void> syncFilesWithDrive() async {
+    isSyncing = true;
+    notifyListeners();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? lastSyncTime = prefs.getString('lastSyncTime');
+    print('Last sync time: $lastSyncTime');
+    String folderId = _authProvider.folderId;
+    String refreshToken = _authProvider.refreshTokensList[0];
+    if(refreshToken.isEmpty) {
+      return;
+    }
+    final response = await FileServices.fetchDriveFiles(modifiedAfter: lastSyncTime,folderId: folderId, pageToken: null, refreshToken: refreshToken, pageSize: 50);
+    List<DriveFile> filesToSync = response.files;
+    filesToSync = filesToSync.where((file) => !allFiles.any((existingFile) => existingFile.id == file.id)).toList();
+    allFiles.insertAll(0, filesToSync);
+    prefs.setString('lastSyncTime', DateTime.now().toUtc().toIso8601String());
+    isSyncing= false;
+    notifyListeners();
+  }
+
+
+
 
   List<DriveFile> get selectedFiles => allFiles.where((file) => selectedFileIds.contains(file.id)).toList();
 }

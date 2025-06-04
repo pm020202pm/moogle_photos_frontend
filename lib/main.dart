@@ -27,9 +27,8 @@ void backgroundFetchHeadlessTask(HeadlessTask task) async {
   }
   final bool granted = await requestPermissions();
   if (granted) {
-    // AutoUploadProvider autoUploadProvider = AutoUploadProvider();
-    // await autoUploadProvider.uploadCameraFiles(null);
-    // await uploadCameraFiles(null);
+    FileUploadService fileUploadService = FileUploadService();
+    await fileUploadService.backgroundUploadCameraFiles();
   }
   BackgroundFetch.finish(taskId);
 }
@@ -54,7 +53,14 @@ Future<void> main() async {
             return driveFileProvider;
           },
         ),
-        ChangeNotifierProvider(create: (_) => AutoUploadProvider()),
+        ChangeNotifierProxyProvider<DriveFileProvider, AutoUploadProvider>(
+          create: (_) => AutoUploadProvider(),
+          update: (_, driveFileProvider, autoUploadProvider) {
+            autoUploadProvider!.update(driveFileProvider);
+            return autoUploadProvider;
+          },
+        ),
+        // ChangeNotifierProvider(create: (_) => AutoUploadProvider()),
         ChangeNotifierProvider(create: (_) => UploadProvider())
       ],
       child: MyApp(),
@@ -95,8 +101,6 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp> {
 
-  bool isLoggedIn = false;
-  Timer? _autoUploadTimer;
   @override
   void initState() {
     super.initState();
@@ -105,18 +109,8 @@ class MyAppState extends State<MyApp> {
         initPlatformState();
       }
     }
-
-    startAutoUploadTimer();
   }
 
-  void startAutoUploadTimer() {
-    _autoUploadTimer?.cancel();
-    _autoUploadTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
-      final autoUploadProvider = Provider.of<AutoUploadProvider>(context, listen: false);
-      autoUploadProvider.uploadCameraFiles(context);
-      // await uploadCameraFiles(context);
-    });
-  }
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
@@ -142,8 +136,8 @@ class MyAppState extends State<MyApp> {
   void _onBackgroundFetch(String taskId) async {
     final bool granted = await requestPermissions();
     if (granted) {
-      final autoUploadProvider = Provider.of<AutoUploadProvider>(context, listen: false);
-      await autoUploadProvider.uploadCameraFiles(context);
+      // final autoUploadProvider = Provider.of<AutoUploadProvider>(context, listen: false);
+      // await autoUploadProvider.uploadCameraFiles();
       // await uploadCameraFiles(context);
     }
     BackgroundFetch.finish(taskId);
@@ -152,12 +146,6 @@ class MyAppState extends State<MyApp> {
   /// This event fires shortly before your task is about to timeout.  You must finish any outstanding work and call BackgroundFetch.finish(taskId).
   void _onBackgroundFetchTimeout(String taskId) {
     BackgroundFetch.finish(taskId);
-  }
-
-  @override
-  void dispose() {
-    _autoUploadTimer?.cancel();
-    super.dispose();
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:Photos/dashboard/widgets/action_button_desktop.dart';
 import 'package:Photos/dashboard/widgets/nav_button.dart';
 import 'package:Photos/dashboard/widgets/sidebar.dart';
@@ -8,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../Login/providers/auth_provider.dart';
+import '../auto_upload_provider.dart';
 import '../home/providers/drive_file_provider.dart';
 import 'dashboard_provider.dart';
 import 'widgets/top_bar_desktop.dart';
@@ -21,6 +24,8 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   List<Widget> tabs = [PhotosTabDesktop(), PhotosTabDesktop(), SettingsTabDesktop()];
 
+  Timer? _autoUploadTimer;
+  Timer? _refreshTokenTimer;
   @override
   void initState() {
     initialiseData();
@@ -31,7 +36,35 @@ class _DashboardState extends State<Dashboard> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.refreshAccessTokens();
     await fileProvider.getStorage();
+    startAutoUploadTimer();
+    refreshTokenTimer();
   }
+
+  void startAutoUploadTimer() {
+    _autoUploadTimer?.cancel();
+    _autoUploadTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
+      final autoUploadProvider = Provider.of<AutoUploadProvider>(context, listen: false);
+      final fileProvider = Provider.of<DriveFileProvider>(context, listen: false);
+      await fileProvider.syncFilesWithDrive();
+      await autoUploadProvider.uploadCameraFiles();
+    });
+  }
+
+  void refreshTokenTimer() {
+    _refreshTokenTimer?.cancel();
+    _refreshTokenTimer = Timer.periodic(Duration(minutes: 50), (timer) async {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.refreshAccessTokens();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoUploadTimer?.cancel();
+    _refreshTokenTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;

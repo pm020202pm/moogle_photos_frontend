@@ -37,6 +37,7 @@ class _PhotosTabDesktopState extends State<PhotosTabDesktop> {
     final Map<String, List<DriveFile>> grouped = {};
     for (var file in files) {
       final title = _getSectionTitle(file.modifiedTime);
+
       grouped.putIfAbsent(title, () => []).add(file);
     }
     return grouped;
@@ -52,7 +53,7 @@ class _PhotosTabDesktopState extends State<PhotosTabDesktop> {
         final groupedFiles = _groupByDate(fileProvider.allFiles);
         return Container(
           margin: EdgeInsets.only(right: px600? 0:15),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.symmetric(horizontal: px600? 0:8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -63,16 +64,9 @@ class _PhotosTabDesktopState extends State<PhotosTabDesktop> {
           child: CustomScrollView(
             controller: _scrollController,
             slivers: [
-              if (fileProvider.isAllFilesLoading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ),
-              if (fileProvider.allFiles.isEmpty && fileProvider.isAllFilesLoading)
+              if (fileProvider.allFiles.isEmpty)
                 const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: Text('No photos found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),)),
                 )
               else
                 ...groupedFiles.entries.map((entry) {
@@ -86,13 +80,13 @@ class _PhotosTabDesktopState extends State<PhotosTabDesktop> {
                       ),
                       GridView.builder(
                         shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: px600? 0:8),
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: entry.value.length,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: px600?4: px1200? 5:6,
-                          crossAxisSpacing: 4,
-                          mainAxisSpacing: 4,
+                          crossAxisSpacing: px600? 2:4,
+                          mainAxisSpacing: px600? 2:4,
                         ),
                         itemBuilder: (context, index) {
                           final file = entry.value[index];
@@ -128,6 +122,6 @@ String _getSectionTitle(DateTime date) {
   if (DateUtils.isSameDay(date, now.subtract(const Duration(days: 1)))) return 'Yesterday';
   final diff = now.difference(date).inDays;
   if (diff < 7) return DateFormat('EEEE').format(date);
-  return DateFormat('EEE, MMM d').format(date);
+  return DateFormat('EEE, MMM d yyyy').format(date);
 }
 

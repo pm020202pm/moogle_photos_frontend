@@ -16,6 +16,7 @@ class LoginServices{
         Uri.parse(requestOtpUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: jsonEncode({
           'email': emailId

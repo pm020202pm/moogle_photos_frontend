@@ -1,7 +1,10 @@
 
 import 'dart:ui';
-const String baseUrl = 'http://206.1.62.209:3000/api';
+// const String baseUrl = 'http://206.1.62.209:3000/api';
+const String url = 'https://pathology-pose-til-manufacturing.trycloudflare.com';
+const String baseUrl = '$url/api';
 const String authUrl = 'https://google-photos-backend.onrender.com/auth/google';
+// const String authUrl = '$url/auth/google';
 Color whiteColor = const Color.fromRGBO(255, 255, 255,1);
 Color yellowColor = const Color.fromRGBO(235, 161, 45, 1);
 Color darkYellowColor = const Color.fromRGBO(200, 140, 45, 1);

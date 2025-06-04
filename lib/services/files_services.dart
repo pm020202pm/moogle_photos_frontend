@@ -8,10 +8,11 @@ import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 
 class FileServices {
-  static Future<DriveFilesResponse> fetchDriveFiles({String? folderId, String? pageToken, int pageSize = 20, required String refreshToken}) async {
+  static Future<DriveFilesResponse> fetchDriveFiles({String? folderId, String? pageToken, String? modifiedAfter, int pageSize = 30, required String refreshToken}) async {
     final queryParams = <String, String>{
       if (folderId != null) 'folderId': folderId,
       if (pageToken != null) 'pageToken': pageToken,
+      if (modifiedAfter != null) 'modifiedAfter': modifiedAfter,
       'pageSize': pageSize.toString(),
       'refreshToken' : refreshToken,
     };
@@ -19,7 +20,6 @@ class FileServices {
     final uri = Uri.parse('$baseUrl/list-files').replace(queryParameters: queryParams);
 
     final response = await http.get(uri);
-
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
       final files = (data['files'] as List)
@@ -94,20 +94,7 @@ class FileServices {
     }
   }
 
-  static Future<DriveFile?> uploadFile(File file, String accessToken, String folderId) async {
-    final fileName = p.basename(file.path);
-    final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-    final fileBytes = await file.readAsBytes();
-    final fileSize = fileBytes.length;
 
-    final sessionUrl = await initiateResumableSession(accessToken, fileName, mimeType, fileSize, folderId);
-
-    if (sessionUrl != null) {
-      DriveFile? file= await uploadFileChunks(sessionUrl, fileBytes, mimeType);
-      return file;
-    }
-    return null;
-  }
 
   static Future<int?> getDriveStorageQuota(String accessToken) async {
     final uri = Uri.parse('https://www.googleapis.com/drive/v3/about?fields=storageQuota');
@@ -123,6 +110,22 @@ class FileServices {
       debugPrint('❌ Failed to fetch storage info: ${response.statusCode} - ${response.body}');
       return null;
     }
+  }
+
+  static Future<DriveFile?> uploadFile(File file, String accessToken, String folderId) async {
+    final fileName = p.basename(file.path);
+    final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+    print('Uploading file: $fileName, MIME type: $mimeType');
+    final fileBytes = await file.readAsBytes();
+    final fileSize = fileBytes.length;
+
+    final sessionUrl = await initiateResumableSession(accessToken, fileName, mimeType, fileSize, folderId);
+
+    if (sessionUrl != null) {
+      DriveFile? file= await uploadFileChunks(sessionUrl, fileBytes, mimeType);
+      return file;
+    }
+    return null;
   }
 
   static Future<DriveFile?> uploadFileChunks(String uploadUrl, List<int> fileBytes, String mimeType) async {

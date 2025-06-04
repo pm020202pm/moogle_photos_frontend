@@ -52,6 +52,7 @@ class AuthProvider with ChangeNotifier{
       token  = data['token'];
       savedUser = UserModel.fromJson(user);
       SharedPreferences prefs = await SharedPreferences.getInstance();
+      prefs.clear();
       prefs.setString('token', token);
       prefs.setString('emailId', email);
       prefs.setString('folderId', savedUser!.sharedFolderId);

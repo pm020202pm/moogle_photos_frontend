@@ -37,11 +37,13 @@ class _SplashscreenState extends State<Splashscreen> {
         Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => Dashboard()), (route) => false);
       }else if(statusCode==404){
         errorSnackMsg('User not found', context);
+        Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginPage()));
       } else if(statusCode==401){
         errorSnackMsg('Invalid credentials', context);
         Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginPage()));
       } else{
         errorSnackMsg('Unable to connect to server', context);
+        Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginPage()));
       }
     }
     catch (e) {

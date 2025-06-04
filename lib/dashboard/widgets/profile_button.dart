@@ -1,3 +1,4 @@
+import 'package:Photos/dashboard/widgets/view_accounts_dialog_mobile.dart';
 import 'package:flutter/material.dart';
 import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,9 @@ class ProfileButton extends StatelessWidget {
     final autoUploadProvider = Provider.of<AutoUploadProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final String emailInitial = authProvider.savedUser?.email[0]??'';
+    Size size = MediaQuery.of(context).size;
+    final px1200 = size.width <1200;
+    final px600 = size.width <600;
     return InkWell(
       onTap: () {
         showPopover(
@@ -24,10 +28,11 @@ class ProfileButton extends StatelessWidget {
           context: context,
           bodyBuilder: (context) => Padding(
             padding: const EdgeInsets.all(12),
-            child: ViewAccountsDialog(
-                hidePopup: () {
-                  Navigator.pop(context);
-                  }, width: 400),
+            child: px600
+                ? ViewAccountsDialogMobile(hidePopup: () {Navigator.pop(context);},  width: 400)
+                :ViewAccountsDialog(
+                hidePopup: () {Navigator.pop(context);},
+                width: 400),
           ),
         );
       },
